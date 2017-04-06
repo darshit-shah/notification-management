@@ -23,7 +23,7 @@
   	"axiom-assert-helper": "*",
   	"node-database-executor": "*",
   	"template-management": "*",
-  	"nodemailer": "*", 
+  	"nodemailer": "2.7.0", 
     "debug": "*",
     "request": "*"
   },
