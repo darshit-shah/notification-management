@@ -24,9 +24,7 @@ function createSchema(dbConfig, cb) {
     query: notificationScript,
     dbConfig: dbConfig
   };
-  // // debug("createSchema", queryData)
   queryExecutor.executeRawQuery(queryData, function(data) {
-    // // debug('createSchema response: %s', JSON.stringify(data));
     if (data.status == true) {
       cb({
         status: true,
@@ -52,7 +50,6 @@ function getNotificationMasterId(code, dbConfig, cb) {
     dbConfig: dbConfig
   };
   queryExecutor.executeQuery(getIdRequestData, function(data) {
-    // // debug('getNotificationMasterId response: %s', JSON.stringify(data));
     if (data.status == true) {
       cb({
         status: true,
@@ -83,7 +80,6 @@ function getPkId(code, dbConfig, cb) {
     });
   } else {
     getNotificationMasterId(code, dbConfig, function(masterIdData) {
-      // // debug('master-id-response: ', masterIdData);
       if (masterIdData.status == true) {
         var masterId = masterIdData.content[0].pk_id.toString();
         cachedPkIds[code] = masterId;
@@ -117,7 +113,6 @@ function mapTransaction(transaction) {
     }
     value[constant.tables.notificationTransaction.columns['userIds']] = userIds;
   }
-  // // debug('mapped-transaction: %s', JSON.stringify(value));
   return value;
 }
 
@@ -127,7 +122,6 @@ function mapTransaction(transaction) {
 function prepareTransactionData(transactionData, dbConfig, cb) {
   var preparedTransactions = [];
   var invalidTransactions = [];
-  // // debug('transaction data to prepare: %s', JSON.stringify(transactionData));
 
   function prepareNextTransaction(index) {
     if (index >= transactionData.length) {
@@ -138,7 +132,6 @@ function prepareTransactionData(transactionData, dbConfig, cb) {
     } else {
       var transaction = transactionData[index];
       getPkId(transaction['code'], dbConfig, function(masterIdData) {
-        // // debug('master-id: ', masterIdData);
         if (masterIdData.status == true) {
           transaction['nmId'] = masterIdData.content;
           transaction['processed'] = constant.defaultValues['notification_processed'];
@@ -168,7 +161,6 @@ function commonInsert(query, data, dbConfig, cb) {
     query: query,
     dbConfig: dbConfig
   };
-  // // debug('query insert config: ' + JSON.stringify(queryRequestData));
   queryExecutor.executeQuery(queryRequestData, function(data) {
     cb(data);
   });
@@ -265,7 +257,6 @@ function getNotificationTransactionByID(id, dbConfig, cb) {
   };
 
   queryExecutor.executeQuery(requestData, function(data) {
-    // // debug('getNotificationTransactionByID executeQuery data: %s', JSON.stringify(data));;
     if (data.status == false) {
       cb(data);
       return;
@@ -290,7 +281,6 @@ function getUserEmailByID(id, dbConfig, cb) {
     cb({ status: true, error: { message: "Input not found" } });
     return;
   }
-  console.log({ query: "select email from tbl_usermaster where pk_UserID=" + id, dbConfig: constant.dbConfig })
   queryExecutor.executeRawQuery({ query: "select email from tbl_usermaster where pk_UserID=" + id, dbConfig: dbConfig }, function(getUserQuery) {
     if (getUserQuery.status == false) {
       cb(getUserQuery);
@@ -322,15 +312,11 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
     transactionData[0].userIds = JSON.parse(transactionData[0].userIds).map(function(item) {
       return item.email;
     }).join();
-    // // debug('userIds present: %s', JSON.stringify(transactionData));
     prepareTransactionData(transactionData, dbConfig, function(preparedTransactionsData) {
       if (preparedTransactionsData.status == true) {
-        // // debug('prepareTransactionData response: %s', JSON.stringify(preparedTransactionsData));
         commonInsert(constant.queries.ntInsertQuery, preparedTransactionsData.content, dbConfig, function(data) {
-          // // debug('insertNotificationTransactions response: %s', JSON.stringify(data));
           if (data.status == true) {
             getNotificationTransactionByID(data.content.insertId, dbConfig, function(notiData) {
-              // // debug('getNotificationTransactionByID response: %s', JSON.stringify(notiData));
               if (notiData.status === false) {
                 cb(notiData);
                 return;
@@ -343,7 +329,6 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                 });
                 return;
               } else {
-                debug('notidat', notiData)
                 var notificationID = notiData.content[0]["pk_id"];
                 var inappTemplate = notiData.content[0]["NM_inapp_template"];
                 var pushTemplate = notiData.content[0]["NM_push_template"];
@@ -373,11 +358,9 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                     return;
                   } else {
                     getUserDetails(userArray, userTableConfig, dbConfig, function(userData) {
-                      // // debug('getUserDetails response: %s', JSON.stringify(userData));
 
                       if (userData.content.length <= 0) {
                         updateNotificationStatus(sendFailed, notificationID, userTableConfig, dbConfig, function() {
-                          // // debug('User not available');
                           cb({
                             status: true,
                             content: {
@@ -419,24 +402,20 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                         });
                       });
 
-                      // // // debug('processedUserData array: %s', JSON.stringify(processedUserData));
 
                       function processInapp(d, userTableConfig, dbConfig, alertAdditonalInfo, callback) {
-                        debug("-----", d, "-----------", msgData)
+                        // msgData.receiver_email = d.email;
 
                         var inappTemplateToProcess = d.pk_UserID != msgData.createdById ? inappSharedTemplate : inappTemplate;
                         if (d.pk_UserID != msgData.createdById) {
                           // msgData.alert_subscriber = msgData.email
-                          debug("INAPP  ---- SHARED NOTIF", msgData.alert_subscriber, inappSharedTemplate)
                         }
                         if (inappTemplateToProcess === undefined || inappTemplateToProcess === null || !alertAdditonalInfo.isInapp || inappTemplateToProcess.trim().length === 0) {
-                          // // debug('inapp notification skipped...');
                           callback();
                           return;
                         }
 
-                        // // // debug('inapp notification template: ', inappTemplateToProcess);
-                        // // // debug('------MESG DATA------------ ', msgData);
+                        // debug('------MESG DATA------------ ', msgData);
 
 
                         var inappHtml = Template.toHtml(inappTemplateToProcess, msgData, '{{', '}}');
@@ -445,30 +424,29 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                           notificationid: notificationID,
                           html: inappHtml
                         };
-                        // // // debug('inapp notification data: ', inappData);
                         insertInappNotification(inappData, inappUnread, userTableConfig, dbConfig, function(inappResult) {
-                          // // // debug('inapp insert response: ', inappResult);
+                          // debug('inapp insert response: ', inappResult);
                           callback();
                           return;
                         });
                       }
 
                       function processPush(d, userTableConfig, dbConfig, alertAdditonalInfo, callback) {
+                        // msgData.receiver_email = d.email;
 
                         var pushTemplateToProcess = d.pk_UserID != msgData.createdById ? pushSharedTemplate : pushTemplate;
                         if (d.pk_UserID != msgData.createdById) {
                           // msgData.alert_subscriber = msgData.email
-                          debug("PUSH ----- SHARED NOTIF", msgData.alert_subscriber, pushSharedTemplate)
+                          // debug("PUSH ----- SHARED NOTIF", msgData.alert_subscriber, pushSharedTemplate)
                         }
-                        // // debug('d: %s', JSON.stringify(d));
+                        // debug('d: %s', JSON.stringify(d));
 
                         if (pushTemplateToProcess === undefined || pushTemplateToProcess === null || !alertAdditonalInfo.isPush || pushTemplateToProcess.trim().length === 0) {
-                          // // debug('push notification skipped...');
+                          // // // debug('push notification skipped...');
                           callback();
                           return;
                         }
 
-                        // // debug('push notification template: ', pushTemplateToProcess);
                         var pushText = Template.toHtml(pushTemplateToProcess, msgData, '{{', '}}');
                         var pushData = [];
                         d["playerIDs"].forEach(function(userPlayerID) {
@@ -488,13 +466,11 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                           }
                         });
 
-                        // // debug('push notification data: ', pushData);
                         if (pushData.length <= 0) {
                           callback();
                           return;
                         } else {
                           insertPushNotification(pushData, userTableConfig, dbConfig, function(pushResult) {
-                            // // debug('push insert response: ', pushResult);
                             callback();
                             return;
                           });
@@ -504,16 +480,17 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                       function processEmail(d, userTableConfig, dbConfig, alertAdditonalInfo, callback) {
 
                         var emailTemplateToProcess = d.pk_UserID != msgData.createdById ? emailSharedTemplate : emailTemplate;
+                        // msgData.receiver_email = d.email;
                         var emailSubjectToProcess = emailSubject;
                         if (d.pk_UserID != msgData.createdById) {
                           // msgData.alert_subscriber = msgData.email
-                          debug("EMAIL ---- SHARED NOTIF", msgData.alert_subscriber, emailSharedTemplate)
+
                         }
                         if (emailTemplateToProcess === undefined || emailTemplateToProcess === null || !alertAdditonalInfo.isEmail || emailTemplateToProcess.trim().length === 0) {
-                          // // debug('email notification skipped...');
                           callback();
                           return;
                         }
+                        debug("EMAIL ---- SHARED NOTIF", msgData)
 
                         var mailhtml = Template.toHtml(emailTemplateToProcess, msgData, '{{', '}}');
                         emailSubjectToProcess = Template.toHtml(emailSubjectToProcess, msgData, '{{', '}}');
@@ -535,6 +512,8 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                         var userData = userAlertSettingsData.find(function(userInfo) {
                           return d.pk_UserID == userInfo.UserId;
                         });
+                        msgData.receiver_email = d.email;
+
                         processInapp(d, userTableConfig, dbConfig, userData.AlertAdditonalInfo, function(inappResponse) {
                           processPush(d, userTableConfig, dbConfig, userData.AlertAdditonalInfo, function(pushResponse) {
                             processEmail(d, userTableConfig, dbConfig, userData.AlertAdditonalInfo, function(emailResponse) {
@@ -550,8 +529,7 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                       processUser(0, userTableConfig, dbConfig);
 
                       function processUser(index, userTableConfig, dbConfig) {
-                        // // debug('processedUserData.length: ', processedUserData.length);
-                        // // debug('index: ', index);
+                        
                         if (index >= processedUserData.length) {
                           updateNotificationStatus(processSuccess, notificationID, userTableConfig, dbConfig, function() {
                             cb({
@@ -565,8 +543,7 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                           return;
                         }
                         processNotificationFunction(processedUserData[index], userTableConfig, dbConfig, function() {
-                          // // debug('processedUserData.length 0: ', processedUserData.length);
-                          // // debug('index 0: ', index);
+                          
                           processUser(index + 1, userTableConfig, dbConfig);
                         });
                       }
@@ -597,7 +574,6 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
       }
     });
   } else {
-    // // debug('no userIds present: %s', JSON.stringify(transactionData));
     cb({
       status: false,
       error: constant.status['NM_ERR_INVALID_USERIDS']
@@ -881,12 +857,8 @@ function getUserDetails(userArray, userTableConfig, dbConfig, cb) {
     dbConfig: dbConfig
   };
 
-  // // debug('getUserDetails notificationJson: %s', JSON.stringify(jsonQuery));
-  // // debug('getUserDetails dbConfig: %s', JSON.stringify(dbConfig));
-  // // debug('getUserDetails requestData: %s', JSON.stringify(requestData));
-
+  
   queryExecutor.executeQuery(requestData, function(data) {
-    // // debug('getUserDetails executeQuery: %s', JSON.stringify(data));
     cb(data);
   });
 }
