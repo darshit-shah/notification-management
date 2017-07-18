@@ -166,6 +166,40 @@ function commonInsert(query, data, dbConfig, cb) {
   });
 }
 
+/**
+ * Given the trigger type get templates for header and footer
+ * @param  {Object}   dbConfig Database connection string
+ * @param  {String}   triggerType Trigger name
+ * @param  {Function} cb        callback method
+ */
+function getHeaderFooterBytriggerType(dbConfig, triggerType, cb) {
+  queryExecutor.executeQuery({
+    query: {
+      table: 'tbl_NotificationMaster', //userTableConfig.NotificationTemplateTableName,
+
+      // make select * or select : [] to get all headers
+      select: [{
+        field: 'NM_email_header', //userTableConfig.notification_header_email,
+        alias: 'header'
+      }, {
+        field: 'NM_email_footer', //userTableConfig.notification_footer_email,
+        alias: 'footer'
+      }],
+      filter: {
+        AND: [{
+          field: 'NM_code', //userTableConfig.notification_code,
+          operator: 'EQ',
+          value: triggerType
+        }]
+      }
+    },
+    dbConfig: dbConfig
+  }, function(getTemplateResponse) {
+    // debug("getTemplateResponse", getTemplateResponse)
+    cb(getTemplateResponse);
+  });
+};
+
 /*
     Gets notification transaction by id
     // Todo : update this to be configurable
@@ -221,6 +255,14 @@ function getNotificationTransactionByID(id, dbConfig, cb) {
       field: 'NM_shared_push_template'
     }, {
       table: 'NTM',
+      field: 'NM_email_header', //userTableConfig.notification_header_email,
+      alias: 'header'
+    }, {
+      table: 'NTM',
+      field: 'NM_email_footer', //userTableConfig.notification_header_email,
+      alias: 'footer'
+    }, {
+      table: 'NTM',
       field: 'NM_subject'
     }, {
       table: 'NTT',
@@ -270,6 +312,16 @@ function getNotificationTransactionByID(id, dbConfig, cb) {
       } else {
         data.content[0]["NT_data"].alert_subscriber = getEmailResponse.content;
         cb(data)
+          ///
+          // getHeaderFooterBytriggerType(dbConfig, 'KPIALT', function(headerFooterData) {
+          //   if (headerFooterData.status == false) {
+          //     cb(headerFooterData)
+          //   } else {
+          //     data.header = headerFooterData.content[0].header
+          //     data.footer = headerFooterData.content[0].footer
+          //     cb(data)
+          //   }
+          // })
       }
     });
   });
@@ -288,7 +340,10 @@ function getUserEmailByID(id, dbConfig, cb) {
       if (getUserQuery.content.length == 0) {
         cb({ status: false, error: { message: "No email found" } });
       } else {
-        cb({ status: true, content: getUserQuery.content[0].email });
+        cb({
+          status: true,
+          content: getUserQuery.content[0].email
+        });
       }
     }
 
@@ -329,6 +384,7 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                 });
                 return;
               } else {
+                // debug("************ NOTI DATA*********", notiData)
                 var notificationID = notiData.content[0]["pk_id"];
                 var inappTemplate = notiData.content[0]["NM_inapp_template"];
                 var pushTemplate = notiData.content[0]["NM_push_template"];
@@ -339,7 +395,8 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                 var emailSharedTemplate = notiData.content[0]["NM_shared_email_template"];
                 var inappSharedTemplate = notiData.content[0]["NM_shared_inapp_template"];
                 var pushSharedTemplate = notiData.content[0]["NM_shared_push_template"];
-
+                var header = notiData.content[0]["header"] || "";
+                var footer = notiData.content[0]["footer"] || "";
                 var msgData = notiData.content[0]["NT_data"];
 
                 var userArray = notiData.content[0]["NT_fk_User_ids"].split(',');
@@ -415,7 +472,7 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                           return;
                         }
 
-                        // debug('------MESG DATA------------ ', msgData);
+                        // // debug('------MESG DATA------------ ', msgData);
 
 
                         var inappHtml = Template.toHtml(inappTemplateToProcess, msgData, '{{', '}}');
@@ -425,7 +482,7 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                           html: inappHtml
                         };
                         insertInappNotification(inappData, inappUnread, userTableConfig, dbConfig, function(inappResult) {
-                          // debug('inapp insert response: ', inappResult);
+                          // // debug('inapp insert response: ', inappResult);
                           callback();
                           return;
                         });
@@ -437,12 +494,12 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                         var pushTemplateToProcess = d.pk_UserID != msgData.createdById ? pushSharedTemplate : pushTemplate;
                         if (d.pk_UserID != msgData.createdById) {
                           // msgData.alert_subscriber = msgData.email
-                          // debug("PUSH ----- SHARED NOTIF", msgData.alert_subscriber, pushSharedTemplate)
+                          // // debug("PUSH ----- SHARED NOTIF", msgData.alert_subscriber, pushSharedTemplate)
                         }
-                        // debug('d: %s', JSON.stringify(d));
+                        // // debug('d: %s', JSON.stringify(d));
 
                         if (pushTemplateToProcess === undefined || pushTemplateToProcess === null || !alertAdditonalInfo.isPush || pushTemplateToProcess.trim().length === 0) {
-                          // // // debug('push notification skipped...');
+                          // // // // debug('push notification skipped...');
                           callback();
                           return;
                         }
@@ -482,6 +539,7 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                         var emailTemplateToProcess = d.pk_UserID != msgData.createdById ? emailSharedTemplate : emailTemplate;
                         // msgData.receiver_email = d.email;
                         var emailSubjectToProcess = emailSubject;
+
                         if (d.pk_UserID != msgData.createdById) {
                           // msgData.alert_subscriber = msgData.email
 
@@ -490,16 +548,20 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                           callback();
                           return;
                         }
-                        debug("EMAIL ---- SHARED NOTIF", msgData)
+                        // debug("EMAIL ---- SHARED NOTIF", msgData)
 
                         var mailhtml = Template.toHtml(emailTemplateToProcess, msgData, '{{', '}}');
+                        var mailHeader = Template.toHtml(header, msgData, '{{', '}}');
+                        var mailFooter = Template.toHtml(footer, msgData, '{{', '}}');
                         emailSubjectToProcess = Template.toHtml(emailSubjectToProcess, msgData, '{{', '}}');
 
                         var maildata = {
                           mailfrom: userTableConfig.mailFromAddress,
                           mailto: d["email"],
-                          mailsubject: emailSubjectToProcess,
+                          mailsubject: "Trigger_Risk",
                           mailhtml: mailhtml,
+                          mailHeader: mailHeader,
+                          mailFooter: mailFooter,
                           notificationid: notificationID
                         }
 
@@ -529,7 +591,7 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                       processUser(0, userTableConfig, dbConfig);
 
                       function processUser(index, userTableConfig, dbConfig) {
-                        
+
                         if (index >= processedUserData.length) {
                           updateNotificationStatus(processSuccess, notificationID, userTableConfig, dbConfig, function() {
                             cb({
@@ -543,7 +605,7 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                           return;
                         }
                         processNotificationFunction(processedUserData[index], userTableConfig, dbConfig, function() {
-                          
+
                           processUser(index + 1, userTableConfig, dbConfig);
                         });
                       }
@@ -857,7 +919,7 @@ function getUserDetails(userArray, userTableConfig, dbConfig, cb) {
     dbConfig: dbConfig
   };
 
-  
+
   queryExecutor.executeQuery(requestData, function(data) {
     cb(data);
   });
@@ -913,15 +975,18 @@ function insertMailNotification(data, mnStatus, userTableConfig, dbConfig, cb) {
     table: userTableConfig.mailNotificationTableName,
     insert: {
       field: userTableConfig.mailNotificationTableFieldArray,
-      fValue: [data.mailfrom, data.mailto, data.mailsubject, data.mailhtml, mnStatus, data.notificationid]
+      fValue: [data.mailfrom, data.mailto, data.mailsubject, data.mailhtml, mnStatus, data.notificationid, data.mailHeader, data.mailFooter]
     }
   };
   var requestData = {
     query: query,
     dbConfig: dbConfig
   };
+  // debug('INSTER RESp', data)
+
   queryExecutor.executeQuery(requestData, function(data) {
     // data = correctResponse(data);
+    // debug('INSTER RESp', data)
     cb(data);
   });
 }
