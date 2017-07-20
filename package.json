@@ -1,6 +1,6 @@
 {
   "name": "notification-management",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "notification management",
   "main": "notification.js",
   "scripts": {
