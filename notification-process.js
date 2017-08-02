@@ -694,6 +694,8 @@ function resetMailNotificationStatus(userTableConfig, dbConfig, cb) {
     Process for sending mail notifications one by one using gmail service
 */
 function sendMailNotifications(userTableConfig, dbConfig, mailConfig, cb) {
+  console.log("**********************************************************************")
+  debug("**********************************************************************")
   getMailNotifications(userTableConfig, dbConfig, function(notiData) {
     if (notiData.status === false) {
       debug(notiData);
@@ -751,57 +753,68 @@ function sendMailNotifications(userTableConfig, dbConfig, mailConfig, cb) {
             } else {
 
               function processMail(d, userTableConfig, dbConfig, mailConfig, callback) {
+                // getHeaderFooterBytriggerType(userTableConfig, dbConfig, userTableConfig.notificationType_alert, function(headerFooterResp) {
+                //   if (headerFooterResp.status == false) {
+                //     callback(headerFooterResp);
+                //     return;
+                //   }
+                //   var mailHeader = headerFooterResp.content[0].header;
+                //   var mailFooter = headerFooterResp.content[0].footer;
+                  debug('mailService.sendMail d: %s', JSON.stringify(d));
+                  debug('mailService.sendMail userTableConfig: %s', JSON.stringify(userTableConfig));
+                  debug('mailService.sendMail dbConfig: %s', JSON.stringify(dbConfig));
+                  debug('mailService.sendMail mailConfig: %s', JSON.stringify(mailConfig));
 
-                debug('mailService.sendMail d: %s', JSON.stringify(d));
-                debug('mailService.sendMail userTableConfig: %s', JSON.stringify(userTableConfig));
-                debug('mailService.sendMail dbConfig: %s', JSON.stringify(dbConfig));
-                debug('mailService.sendMail mailConfig: %s', JSON.stringify(mailConfig));
+                  var mailObject = utils.extend(true, {}, mailConfig);
+                  debug('mailService.sendMail mailObject: %s', JSON.stringify(mailObject));
+                  var mailParams = {};
+                  1
+                  if (pkOfEmailIDsArray.length > 1) {
+                    mailParams.toAddress = d[userTableConfig.mailToKeyMailNotification];
+                    mailParams.subject = emailNotifications.content[0][userTableConfig.mailSubjectKeyMailNotification];
+                    mailParams.htmlData = emailNotifications.content[0][userTableConfig.mailHeaderKeyMailNotification];
 
-                var mailObject = utils.extend(true, {}, mailConfig);
-                debug('mailService.sendMail mailObject: %s', JSON.stringify(mailObject));
-                var mailParams = {};1
-                if (pkOfEmailIDsArray.length > 1) {
-                  mailParams.toAddress = d[userTableConfig.mailToKeyMailNotification];
-                  mailParams.subject = "New notifications generated at MonitorFirst";
-                  mailParams.htmlData = 'You have ' + pkOfEmailIDsArray.length + ' new notifications.<br /><br />';
-                  emailNotifications.content.forEach(function(emailNotificationRow) {
-                    mailParams.htmlData += emailNotificationRow[userTableConfig.mailSubjectKeyMailNotification]+'<br />';
-                  });
-                  mailParams.htmlData += '<br />To view all notifications, please click on the link below : <a href="'+userTableConfig.serverBaseURL+'?screen=notification">View on MonitorFirst</a><br /><br />';
-                  mailParams.htmlData += 'Sincerely,<br />';
-                  mailParams.htmlData += 'The Monitor System Admin<br /><br />';
-                  mailParams.htmlData += 'Powered by<br />';
-                  mailParams.htmlData += '<a href="https://apps.byteprophecy.com/apps/MonitorFirst" style="text-decoration:none;"><img src="https://apps.byteprophecy.com/apps/MonitorFirst/img/monitor_logo.png"><font style="color:#d77c67;">first</font></a>';
-                } else if (pkOfEmailIDsArray.length == 1) {
-                  mailParams.toAddress = d[userTableConfig.mailToKeyMailNotification];
-                  mailParams.subject = d[userTableConfig.mailSubjectKeyMailNotification];
-                  mailParams.htmlData = d[userTableConfig.mailHTMLKeyMailNotification];
-                }
-                debug('mailService.sendMail mailObject: %s', JSON.stringify(mailObject));
-                mailService.sendMail(mailParams.toAddress, mailParams.subject, null, mailParams.htmlData, mailObject, function(response) {
-                  debug('=====mailService.sendMail response: %s', JSON.stringify(response));
-                  if (response.status == true) {
-                    deleteMailNotification(pkOfEmailIDsArray, userTableConfig, dbConfig, function() {
-                      cb({
-                        status: true,
-                        content: {
-                          notificationID: response.data.messageId
-                        }
-                      });
-                      return;
+                    mailParams.htmlData += 'You have ' + pkOfEmailIDsArray.length + ' new notifications.<br /><br />';
+                    emailNotifications.content.forEach(function(emailNotificationRow) {
+                      mailParams.htmlData += emailNotificationRow[userTableConfig.mailHTMLKeyMailNotification] + '<br />';
                     });
-                  } else {
-                    updateMailNotificationStatus(pushSendFailed, pkOfEmailIDsArray, userTableConfig, dbConfig, function() {
-                      cb({
-                        status: true,
-                        content: {
-                          notificationID: pkOfEmailIDsArray
-                        }
-                      });
-                      return;
-                    });
+
+                    mailParams.htmlData += emailNotifications.content[0][userTableConfig.mailFooterKeyMailNotification];
+                    mailParams.htmlData += 'The Monitor System Admin<br /><br />';
+                    mailParams.htmlData += 'Powered by<br />';
+                    mailParams.htmlData += '<a href="https://apps.byteprophecy.com/apps/MonitorFirst" style="text-decoration:none;"><img src="https://apps.byteprophecy.com/apps/MonitorFirst/img/monitor_logo.png"><font style="color:#d77c67;">first</font></a>';
+                  } else if (pkOfEmailIDsArray.length == 1) {
+                    mailParams.toAddress = d[userTableConfig.mailToKeyMailNotification];
+                    mailParams.subject = d[userTableConfig.mailSubjectKeyMailNotification];
+                    mailParams.htmlData = d[userTableConfig.mailHTMLKeyMailNotification];
                   }
-                });
+                  debug('mailService.sendMail mailObject: %s', JSON.stringify(mailObject));
+                  mailService.sendMail(mailParams.toAddress, mailParams.subject, null, mailParams.htmlData, mailObject, function(response) {
+                    debug('=====mailService.sendMail response: %s', JSON.stringify(response));
+                    if (response.status == true) {
+                      deleteMailNotification(pkOfEmailIDsArray, userTableConfig, dbConfig, function() {
+                        cb({
+                          status: true,
+                          content: {
+                            notificationID: response.data.messageId
+                          }
+                        });
+                        return;
+                      });
+                    } else {
+                      updateMailNotificationStatus(pushSendFailed, pkOfEmailIDsArray, userTableConfig, dbConfig, function() {
+                        cb({
+                          status: true,
+                          content: {
+                            notificationID: pkOfEmailIDsArray
+                          }
+                        });
+                        return;
+                      });
+                    }
+                  });
+                // });
+
               }
 
               function processNotification(d, userTableConfig, dbConfig, mailConfig, callback) {
@@ -921,6 +934,41 @@ function updateMailNotificationStatus(processStatus, pkIds, userTableConfig, dbC
     cb(data);
   });
 }
+
+
+/**
+ * Given the trigger type get templates for header and footer
+ * @param  {Object}   userTableConfig config with table name
+ * @param  {Object}   dbConfig Database connection string
+ * @param  {String}   triggerType Trigger name
+ * @param  {Function} cb        callback method
+ */
+// function getHeaderFooterBytriggerType(userTableConfig, dbConfig, triggerType, cb) {
+//   queryExecutor.executeQuery({
+//     query: {
+//       table: userTableConfig.NotificationTemplateTableName,
+
+//       // make select * or select : [] to get all headers
+//       select: [{
+//         field: userTableConfig.notification_header_email,
+//         alias: 'header'
+//       }, {
+//         field: userTableConfig.notification_footer_email,
+//         alias: 'footer'
+//       }],
+//       filter: {
+//         AND: [{
+//           field: userTableConfig.notification_code,
+//           operator: 'EQ',
+//           value: triggerType
+//         }]
+//       }
+//     },
+//     dbConfig: dbConfig
+//   }, function(getTemplateResponse) {
+//     cb(getTemplateResponse);
+//   });
+// };
 
 /*
     Deletes mail notification
