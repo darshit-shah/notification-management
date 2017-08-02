@@ -312,16 +312,16 @@ function getNotificationTransactionByID(id, dbConfig, cb) {
       } else {
         data.content[0]["NT_data"].alert_subscriber = getEmailResponse.content;
         cb(data)
-          ///
-          // getHeaderFooterBytriggerType(dbConfig, 'KPIALT', function(headerFooterData) {
-          //   if (headerFooterData.status == false) {
-          //     cb(headerFooterData)
-          //   } else {
-          //     data.header = headerFooterData.content[0].header
-          //     data.footer = headerFooterData.content[0].footer
-          //     cb(data)
-          //   }
-          // })
+        ///
+        // getHeaderFooterBytriggerType(dbConfig, 'KPIALT', function(headerFooterData) {
+        //   if (headerFooterData.status == false) {
+        //     cb(headerFooterData)
+        //   } else {
+        //     data.header = headerFooterData.content[0].header
+        //     data.footer = headerFooterData.content[0].footer
+        //     cb(data)
+        //   }
+        // })
       }
     });
   });
@@ -362,6 +362,10 @@ function getUserEmailByID(id, dbConfig, cb) {
     ]
 */
 function insertNotificationTransactions(transactionData, userTableConfig, dbConfig, cb) {
+  var transactionDataJSON = JSON.parse(transactionData[0].data)
+  var createdBy = transactionDataJSON.createdById;
+  var notificationDate = transactionDataJSON.notificationDate;
+
   if (transactionData[0].userIds && transactionData[0].userIds != null && transactionData[0].userIds != "") {
     var userAlertSettingsData = JSON.parse(transactionData[0].userIds);
     transactionData[0].userIds = JSON.parse(transactionData[0].userIds).map(function(item) {
@@ -462,11 +466,11 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
 
                       function processInapp(d, userTableConfig, dbConfig, alertAdditonalInfo, callback) {
                         // msgData.receiver_email = d.email;
-
                         var inappTemplateToProcess = d.pk_UserID != msgData.createdById ? inappSharedTemplate : inappTemplate;
                         if (d.pk_UserID != msgData.createdById) {
                           // msgData.alert_subscriber = msgData.email
                         }
+
                         if (inappTemplateToProcess === undefined || inappTemplateToProcess === null || !alertAdditonalInfo.isInapp || inappTemplateToProcess.trim().length === 0) {
                           callback();
                           return;
@@ -481,7 +485,7 @@ function insertNotificationTransactions(transactionData, userTableConfig, dbConf
                           notificationid: notificationID,
                           html: inappHtml
                         };
-                        insertInappNotification(inappData, inappUnread, userTableConfig, dbConfig, function(inappResult) {
+                        insertInappNotification(inappData, inappUnread, userTableConfig, dbConfig, createdBy, notificationDate, function(inappResult) {
                           // // debug('inapp insert response: ', inappResult);
                           callback();
                           return;
@@ -928,12 +932,13 @@ function getUserDetails(userArray, userTableConfig, dbConfig, cb) {
 /*
     Inserts an inapp notification
 */
-function insertInappNotification(data, inStatus, userTableConfig, dbConfig, cb) {
+function insertInappNotification(data, inStatus, userTableConfig, dbConfig, createdBy, notificationDate, cb) {
+
   var query = {
     table: userTableConfig.inAppNotificationTableName,
     insert: {
       field: userTableConfig.inAppNotificationTableFieldArray,
-      fValue: [data.userId, data.html, inStatus, data.notificationid]
+      fValue: [data.userId, data.html, inStatus, data.notificationid, createdBy, notificationDate]
     }
   };
   var requestData = {

@@ -46,7 +46,13 @@ function getNotifications(userId, status, offset, limit, serverdatetime, fromdat
             }
         }, {
             field: 'createdDateTime',
-            alias: 'notificationDate'
+            alias: 'createdDateTime'
+        },{
+            field:'notificationdate',
+            alias: 'notificationdate'
+        },{
+            field:'createdBy',
+            alias: 'createdBy'
         }],
         filter: {
             and: [{
@@ -55,9 +61,16 @@ function getNotifications(userId, status, offset, limit, serverdatetime, fromdat
                 value: userId
             }]
         },
-        sortby: [{
-            field: 'pk_id',
+         sortby: [{
+        //     field: 'pk_id',
+        //     order: 'DESC'
+        // },{
+            field:'notificationdate',
             order: 'DESC'
+        },{
+            field:'createdBy='+userId,
+            order: 'DESC',
+            encloseField:false
         }]
     };
 
