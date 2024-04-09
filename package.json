@@ -1,6 +1,6 @@
 {
   "name": "notification-management",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "notification management",
   "main": "notification.js",
   "scripts": {
@@ -23,9 +23,9 @@
   	"axiom-assert-helper": "*",
   	"node-database-executor": "*",
   	"template-management": "*",
-  	"nodemailer": "2.7.0", 
-    "debug": "*",
-    "request": "*"
+  	"nodemailer": "^6.9.13", 
+    "debug": "^4.3.4",
+    "request": "^2.88.2"
   },
   "bugs": {
     "url": "https://github.com/darshit-shah/notification-management/issues"
